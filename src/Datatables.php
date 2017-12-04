@@ -1,12 +1,19 @@
-<?php
-
-namespace Ozdemir\Datatables;
+<?php namespace Ozdemir\Datatables;
 
 use Ozdemir\Datatables\DB\DatabaseInterface;
+use Ozdemir\Datatables\DB\MySQL;
+use Psr\Http\Message\ServerRequestInterface;
 
+/**
+ * Class Datatables
+ * @package Ozdemir\Datatables
+ */
 class Datatables
 {
 
+    /**
+     * @var MySQL
+     */
     protected $db;
     protected $data;
     protected $recordstotal;
@@ -19,12 +26,26 @@ class Datatables
     protected $query;
     protected $hasOrderIn;
 
-    public function __construct(DatabaseInterface $db)
+    /**
+     * @var array
+     */
+    private $input = [];
+
+    /**
+     * Datatables constructor.
+     * @param DatabaseInterface $db
+     * @param ServerRequestInterface $request
+     */
+    public function __construct(DatabaseInterface $db, ServerRequestInterface $request)
     {
         $this->db = $db->connect();
-        $this->input = isset($_POST["draw"]) ? $_POST : $_GET;
+        $this->input = $request->getParsedBody()?:$request->getQueryParams();
     }
 
+    /**
+     * @param $query
+     * @return $this
+     */
     public function query($query)
     {
         $this->hasOrderIn = $this->isQueryWithOrderBy($query);
@@ -36,11 +57,15 @@ class Datatables
         return $this;
     }
 
+    /**
+     * @param $request
+     * @return array
+     */
     public function get($request)
     {
         switch ($request) {
             case 'columns':
-                return array_values(array_diff($this->columns, (array) $this->hide));
+                return array_values(array_diff($this->columns, (array)$this->hide));
                 break;
             case 'all_columns':
                 return $this->columns;
@@ -51,17 +76,24 @@ class Datatables
         }
     }
 
+    /**
+     * @param $columns
+     * @return $this
+     */
     public function hide($columns)
     {
         if (! is_array($columns)) {
             $columns = func_get_args();
         }
         $columns = array_intersect($this->columns, $columns);
-        $this->hide = array_merge((array) $this->hide, array_combine($columns, $columns));
+        $this->hide = array_merge((array)$this->hide, array_combine($columns, $columns));
 
         return $this;
     }
 
+    /**
+     * @return $this
+     */
     protected function execute()
     {
         $this->recordstotal = $this->db->count($this->sql); // unfiltered data count is here.
@@ -74,6 +106,9 @@ class Datatables
         return $this;
     }
 
+    /**
+     * @return null|string
+     */
     protected function filter()
     {
         $search = '';
@@ -97,6 +132,9 @@ class Datatables
         return $search;
     }
 
+    /**
+     * @return null|string
+     */
     protected function filterglobal()
     {
         $searchinput = $this->input('search')['value'];
@@ -123,6 +161,9 @@ class Datatables
         return implode(" AND ", $search);
     }
 
+    /**
+     * @return null|string
+     */
     protected function filterindividual()
     {
         $allcolumns = $this->input('columns');
@@ -149,6 +190,10 @@ class Datatables
         return null;
     }
 
+    /**
+     * @param $query
+     * @return mixed
+     */
     protected function setcolumns($query)
     {
         $query = preg_replace("/\((?:[^()]+|(?R))*+\)/is", "", $query);
@@ -167,15 +212,22 @@ class Datatables
         return preg_replace($regex, "$2", $columns);
     }
 
+    /**
+     * @param $query
+     * @return bool
+     */
     protected function isQueryWithOrderBy($query)
     {
-        return (bool) count(preg_grep("/(order\s+by)\s+(.+)$/i", explode("\n", $query)));
+        return (bool)count(preg_grep("/(order\s+by)\s+(.+)$/i", explode("\n", $query)));
     }
 
+    /**
+     * @return null|string
+     */
     protected function limit()
     {
         $take = 10;
-        $skip = (integer) $this->input('start');
+        $skip = (integer)$this->input('start');
 
         if ($this->input('length')) {
             $take = (integer) $this->input('length');
@@ -188,6 +240,9 @@ class Datatables
         return " LIMIT $take OFFSET $skip";
     }
 
+    /**
+     * @return null|string
+     */
     protected function orderby()
     {
         $dtorders = $this->input('order');
@@ -209,6 +264,10 @@ class Datatables
         return $orders . implode(",", $takeorders);
     }
 
+    /**
+     * @param bool $json
+     * @return string|array
+     */
     public function generate($json = true)
     {
         $this->execute();
@@ -232,7 +291,7 @@ class Datatables
             }
 
             // hide unwanted columns from output
-            $row = array_diff_key($row, (array) $this->hide);
+            $row = array_diff_key($row, (array)$this->hide);
 
             $formatted_data[] = $this->isIndexed($row);
         }
@@ -245,20 +304,34 @@ class Datatables
         return $this->response($response, $json);
     }
 
+    /**
+     * @param $newColumn
+     * @param $closure
+     * @return $this
+     */
     public function add($newColumn, $closure)
     {
-        $this->add[ $newColumn ] =  $closure;
+        $this->add[$newColumn] = $closure;
 
         return $this;
     }
 
+    /**
+     * @param $column
+     * @param $closure
+     * @return $this
+     */
     public function edit($column, $closure)
     {
-        $this->edit[ $column ] = $closure;
+        $this->edit[$column] = $closure;
 
         return $this;
     }
 
+    /**
+     * @param $input
+     * @return array
+     */
     public function input($input)
     {
         if (isset($this->input[ $input ])) {
@@ -268,6 +341,10 @@ class Datatables
         return false;
     }
 
+    /**
+     * @param $input
+     * @return mixed
+     */
     protected function column($input)
     {
         if (is_numeric($input)) {
@@ -277,6 +354,11 @@ class Datatables
         return $input;
     }
 
+    /**
+     * @param $data
+     * @param bool $json
+     * @return string
+     */
     protected function response($data, $json = true)
     {
         if ($json) {
@@ -288,6 +370,10 @@ class Datatables
         return $data;
     }
 
+    /**
+     * @param $row
+     * @return array
+     */
     protected function isIndexed($row) // if data source uses associative keys or index number
     {
         $column = $this->input('columns');
@@ -298,6 +384,12 @@ class Datatables
         return $row;
     }
 
+    /**
+     * @param $str
+     * @param $open
+     * @param $close
+     * @return int
+     */
     protected function balanceChars($str, $open, $close)
     {
         $openCount = substr_count($str, $open);
@@ -307,6 +399,13 @@ class Datatables
         return $retval;
     }
 
+    /**
+     * @param $delimiter
+     * @param $str
+     * @param string $open
+     * @param string $close
+     * @return array
+     */
     protected function explode($delimiter, $str, $open = '(', $close = ')')
     {
         $retval = array();

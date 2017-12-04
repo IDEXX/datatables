@@ -2,20 +2,27 @@
 
 use DB;
 
-class LaravelAdapter implements DatabaseInterface
+/**
+ * Class LaravelAdapter
+ * @package Ozdemir\Datatables\DB
+ */
+class LaravelAdapter extends AbstractDatabase
 {
 
     protected $escape = [];
 
-    public function __construct($config = null)
-    {
-    }
-
+    /**
+     * @return $this
+     */
     public function connect()
     {
         return $this;
     }
 
+    /**
+     * @param $query
+     * @return array
+     */
     public function query($query)
     {
         $data = DB::select($query, $this->escape);
@@ -28,6 +35,10 @@ class LaravelAdapter implements DatabaseInterface
         return $row;
     }
 
+    /**
+     * @param $query
+     * @return int
+     */
     public function count($query)
     {
         $query = "Select count(*) as rowcount," . substr($query, 6);
@@ -36,9 +47,13 @@ class LaravelAdapter implements DatabaseInterface
         return $data[0]->rowcount;
     }
 
+    /**
+     * @param $string
+     * @return string
+     */
     public function escape($string)
     {
-        $this->escape[':escape' . (count($this->escape) + 1) ] = '%' . $string . '%';
+        $this->escape[':escape' . (count($this->escape) + 1)] = '%' . $string . '%';
 
         return ":escape" . (count($this->escape));
     }
