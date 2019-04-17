@@ -16,14 +16,14 @@ class DatatablesTest extends TestCase
         return substr($data, 0, 3) . '...';
     }
 
-    public function setUp()
+    public function setUp() : void
     {
         $sqlconfig = __DIR__ . '/../fixtures/test.db';
 
-        $this->db = new Datatables(new SQLite($sqlconfig));
+        $this->db = new Datatables(new SQLite($sqlconfig), new ServerRequestDoubleTest());
     }
 
-    public function tearDown()
+    public function tearDown() : void
     {
         unset($this->db);
     }
