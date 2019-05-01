@@ -18,10 +18,10 @@ class Datatables
     protected $data;
     protected $recordstotal;
     protected $recordsfiltered;
-    protected $columns;
-    protected $add;
-    protected $edit;
-    protected $hide;
+    protected $columns = [];
+    protected $add = [];
+    protected $edit = [];
+    protected $hide = [];
     protected $sql;
     protected $query;
     protected $hasOrderIn;
